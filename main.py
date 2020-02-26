@@ -1,4 +1,3 @@
-
 from numpy import load, zeros, ones
 from numpy.random import randint
 from keras.optimizers import Adam
@@ -13,6 +12,7 @@ from keras.layers import Dropout
 from keras.layers import BatchNormalization
 from keras.layers import LeakyReLU
 from matplotlib import pyplot
+
 
 def define_discriminator(image_shape):
 
@@ -29,7 +29,9 @@ def define_discriminator(image_shape):
     merged = Concatenate()([in_src_image, in_target_image])
 
     # C64
-    d = Conv2D(64, (4, 4), strides=(2, 2), padding="same", kernel_initializer=init)(merged)
+    d = Conv2D(64, (4, 4), strides=(2, 2), padding="same", kernel_initializer=init)(
+        merged
+    )
     d = LeakyReLU(alpha=0.2)(d)
 
     # C128
@@ -72,7 +74,7 @@ def define_generator(image_shape=(256, 256, 3)):
     init = RandomNormal(stddev=0.02)
 
     # Image input
-    in_image = Input(shape=image_shape) # Encoder model
+    in_image = Input(shape=image_shape)  # Encoder model
     e1 = define_encoder_block(in_image, 64, batchnorm=False)
     e2 = define_encoder_block(e1, 128)
     e3 = define_encoder_block(e2, 256)
@@ -95,7 +97,9 @@ def define_generator(image_shape=(256, 256, 3)):
     d7 = decoder_block(d6, e1, 64, dropout=False)
 
     # Output
-    g = Conv2DTranspose(3, (4, 4), strides=(2, 2), padding="same", kernel_initializer=init)(d7)
+    g = Conv2DTranspose(
+        3, (4, 4), strides=(2, 2), padding="same", kernel_initializer=init
+    )(d7)
     out_image = Activation("tanh")(g)
 
     # Define model
@@ -104,16 +108,17 @@ def define_generator(image_shape=(256, 256, 3)):
     return model
 
 
-
 def define_encoder_block(layer_in, n_filters, batchnorm=True):
 
     # Initialize weights
     init = RandomNormal(stddev=0.02)
 
     # add downsampling layer
-    g = Conv2D(n_filters, (4, 4), strides=(2, 2), padding="same", kernel_initializer=init)(layer_in)
+    g = Conv2D(
+        n_filters, (4, 4), strides=(2, 2), padding="same", kernel_initializer=init
+    )(layer_in)
 
-    # Conditionally add batch normalization 
+    # Conditionally add batch normalization
     if batchnorm:
         g = BatchNormalization()(g, training=True)
 
@@ -128,7 +133,9 @@ def decoder_block(layer_in, skip_in, n_filters, dropout=True):
     init = RandomNormal(stddev=0.02)
 
     # Add unsampling layer
-    g = Conv2DTranspose(n_filters, (4, 4), strides=(2, 2), padding="same", kernel_initializer=init)(layer_in)
+    g = Conv2DTranspose(
+        n_filters, (4, 4), strides=(2, 2), padding="same", kernel_initializer=init
+    )(layer_in)
 
     # Add batch normalization
     g = BatchNormalization()(g, training=True)
@@ -140,7 +147,7 @@ def decoder_block(layer_in, skip_in, n_filters, dropout=True):
     # Merge with skip connection
     g = Concatenate()([g, skip_in])
 
-    # Relu activation 
+    # Relu activation
     g = Activation("relu")(g)
 
     return g
@@ -165,7 +172,9 @@ def define_gan(g_model, d_model, image_shape):
 
     # Compile model
     opt = Adam(lr=0.0002, beta_1=0.5)
-    model.compile(loss=["binary_crossentropy", "mae"], optimizer=opt, loss_weights=[1, 100])
+    model.compile(
+        loss=["binary_crossentropy", "mae"], optimizer=opt, loss_weights=[1, 100]
+    )
 
     return model
 
@@ -187,8 +196,8 @@ def load_real_samples(filename):
 
 def generate_real_samples(dataset, n_samples, patch_shape):
 
-    # Unpack dataset 
-    trainA, trainB = dataset 
+    # Unpack dataset
+    trainA, trainB = dataset
 
     # choose random instances
     ix = rndint(0, trainA[0], n_samples)
@@ -196,11 +205,11 @@ def generate_real_samples(dataset, n_samples, patch_shape):
     # Retrieve selected images
     X1, X2 = trainA[ix], trainB[ix]
 
-
     # generate `real` class labels (1)
     y = ones((n_samples, patch_shape, patch_shape, 1))
 
     return [X1, X2], y
+
 
 def generate_fake_samples(g_model, samples, patch_shape):
 
@@ -217,14 +226,14 @@ def summarize_performance(step, g_model, dataset, n_samples=3):
 
     # Select a sample of input images
     [X_realA, X_realB], _ = generate_real_samples(dataset, n_samples, 1)
-    
+
     # Generate a batch of fake samples
     X_fakeB, _ = generate_fake_samples(g_model, X_realA, 1)
 
     # Scale all pizels from [-1, 1] to [0, 1]
-    X_realA = (X_realA + 1) / 2.0 
-    X_realB = (X_realB + 1) / 2.0 
-    X_fakeB = (X_fakeB + 1) / 2.0 
+    X_realA = (X_realA + 1) / 2.0
+    X_realB = (X_realB + 1) / 2.0
+    X_fakeB = (X_fakeB + 1) / 2.0
 
     # Plot real source images
     for i in range(n_samples):
@@ -276,19 +285,19 @@ def train(d_model, g_model, gan_model, dataset, n_epochs=100, n_batch=1):
         # Select a batch of real samples
         [X_realA, X_realB], y_real = generate_real_samples(dataset, n_batch, n_patch)
 
-        # Generate a batch of fake samples 
+        # Generate a batch of fake samples
         X_fakeB, y_fake = generate_fake_samples(g_model, X_realA, n_patch)
 
-        # Update discriminator for real samples 
+        # Update discriminator for real samples
         d_loss1 = d_model.train_on_batch([X_realA, X_realB], y_real)
 
-        # Update discriminator for generated samples 
+        # Update discriminator for generated samples
         d_loss2 = d_model.train_on_batch([X_realA, X_fakeB], y_fake)
 
-        # Update the generator 
+        # Update the generator
         g_loss, _, _ = gen_model.train_on_batch(X_realA, [y_real, X_realB])
 
-        # SUmmarize performance 
+        # SUmmarize performance
         if (i + 1) % (bat_per_epo * 10) == 0:
             summarize_performance(i, g_model, dataset)
 
@@ -320,7 +329,7 @@ def condense_images():
 
     print("Loaded:", src_images.shape, tar_images.shape)
 
-    filename =  "maps_256.npz"
+    filename = "maps_256.npz"
 
     savez_compressed(filename, src_images, tar_images)
 
